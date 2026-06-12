@@ -130,6 +130,8 @@ addEventListener('keyup', e=>{
   const k = KEYMAP[e.key.toLowerCase()];
   if(k){ keys[k] = false; }
 });
+// se a janela perde o foco, solta todas as teclas (evita tecla "presa")
+addEventListener('blur', ()=>{ for(const k in keys) keys[k] = false; });
 
 // Botões de toque
 const TB = { bL:'left', bR:'right', bJ:'jump', bA:'atk', bS:'shield' };
@@ -273,7 +275,7 @@ let foods = 0;         // comidas coletadas (total da jornada)
 
 const player = {
   x:0, y:0, w:26, h:44, vx:0, vy:0, face:1,
-  onGround:false, hearts:3, inv:0,
+  onGround:false, hearts:3, inv:0, jumpT:0,
   swordT:0,            // frames restantes do golpe de espada
   atkCd:0,             // cooldown de ataque
   speedT:0,            // 🍝 timer de velocidade
@@ -301,7 +303,9 @@ function placeFoes(lv){
     const h = f.t === 'tom' ? 26 : f.t === 'dum' ? 42 : 22;
     return { x:f.col*TILE+4, y:r*TILE-h, w:28, h,
              vx: f.t === 'dum' ? 0 : (f.t==='tom'?1.0:1.6)*(Math.random()<.5?1:-1),
-             t:f.t, frozen:0, hidden:0, dead:false, bound:f.bound || null };
+             t:f.t, frozen:0, hidden:0, dead:false,
+             // patrulha perto do posto: inimigo não vagueia até o spawn
+             bound: f.bound || [(f.col-5)*TILE, (f.col+5)*TILE] };
   });
 }
 // FASE TUTORIAL — curta, segura, com placas que ensinam os comandos 🎓
@@ -489,8 +493,11 @@ function updatePlay(){
   if(keys.right){ player.vx =  spd; player.face =  1; }
   player.walking = player.vx !== 0;
 
-  if(jp.jump && player.onGround){ player.vy = JUMPV; S.jump(); }
-  if(!keys.jump && player.vy < -4) player.vy = -4;   // pulo variável
+  if(jp.jump && player.onGround){ player.vy = JUMPV; player.jumpT = 0; S.jump(); }
+  player.jumpT++;
+  // pulo variável: soltar cedo encurta o pulo, mas com 10 frames de carência
+  // para que um toque rápido (celular!) ainda dê um pulo decente
+  if(!keys.jump && player.vy < -4 && player.jumpT > 10) player.vy = -4;
   player.vy = Math.min(player.vy + GRAV, 14);
 
   const m = moveRect(player);
