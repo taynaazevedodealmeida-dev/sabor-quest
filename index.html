@@ -127,7 +127,8 @@ const KEYMAP = {
   'k':'shield','c':'shield',
   'enter':'ok',
   'escape':'esc',
-  'h':'help','?':'help'
+  'h':'help','?':'help',
+  's':'spec'
 };
 addEventListener('keydown', e=>{
   const k = KEYMAP[e.key.toLowerCase()];
@@ -158,6 +159,7 @@ if(TOUCH){
 // Botões desenhados no canvas (pular prólogo e ajuda "?")
 const SKIP_BTN = { x:W-170, y:14, w:152, h:38 };
 const HELP_BTN = { x:16,    y:54, w:38,  h:38 };
+const SPE_BTN  = { x:W/2-90, y:64, w:180, h:44 };   // 💖 especial (toque)
 function inRect(mx, my, r){ return mx>=r.x && mx<=r.x+r.w && my>=r.y && my<=r.y+r.h; }
 // Toque/clique no canvas: detecta botões; fora do jogo = confirmar
 cv.addEventListener('pointerdown', e=>{
@@ -167,6 +169,7 @@ cv.addEventListener('pointerdown', e=>{
   const my = (e.clientY - r.top)  * H / r.height;
   if(state === 'prologue' && inRect(mx,my,SKIP_BTN)){ jp.esc  = true; return; }
   if(state === 'play'     && inRect(mx,my,HELP_BTN)){ jp.help = true; return; }
+  if(state === 'play'     && inRect(mx,my,SPE_BTN)) { jp.spec = true; return; }
   if(state !== 'play' || paused) jp.ok = true;
 });
 
@@ -272,6 +275,7 @@ const LEVELS = [
     food(lv,71,8,'M'); food(lv,79,6,'P'); food(lv,87,8,'G');
     food(lv,5,11,'M');  food(lv,15,11,'H'); food(lv,40,11,'P'); food(lv,65,11,'H');
     food(lv,90,11,'M'); food(lv,105,11,'H'); food(lv,110,11,'G');
+    food(lv,93,11,'T');   // 💖 da Tayna, antes da arena do boss
     foe(lv,14,'oli'); foe(lv,28,'tom'); foe(lv,44,'oli');
     foe(lv,76,'oli'); foe(lv,83,'tom');
     lv.bossCol = 122; lv.barrier = 136; lv.taynaCol = 142;
@@ -284,6 +288,9 @@ const LEVELS = [
 let state = 'prologue'; // prologue | title | play | intro | cleared | gameover | ending
 let paused = false;     // pausa de ajuda (botão "?")
 let shake  = 0;         // tremor de tela ao tomar dano
+let specialFx = null;   // coração voador do golpe especial 💖
+let banner = null;      // aviso temporário no meio da tela
+function showBanner(text){ banner = { text, t:170 }; }
 let stateT = 0;        // frames no estado atual
 let frame  = 0;        // frame global (animações)
 let levelIdx = 0;
@@ -293,8 +300,10 @@ let foods = 0;         // comidas coletadas (total da jornada)
 
 const player = {
   x:0, y:0, w:26, h:44, vx:0, vy:0, face:1,
-  onGround:false, hearts:3, inv:0, jumpT:0,
+  onGround:false, hearts:3, maxHearts:3, inv:0, jumpT:0,
   jumpBuf:0, coyote:0, blockCd:0, kbT:0,
+  special:0,   // 0 = não tem | 1 = pronto | 2 = usado
+
   swordT:0,            // frames restantes do golpe de espada
   atkCd:0,             // cooldown de ataque
   speedT:0,            // 🍝 timer de velocidade
@@ -352,7 +361,9 @@ function startTutorial(){
   lv = buildTutorial();
   foes = placeFoes(lv);
   boss = null; shots = []; parts = [];
-  player.hearts = 3; player.inv = 0; player.speedT = 0; player.weapon = null;
+  player.maxHearts = 3; player.hearts = 3;       // jornada nova começa do zero
+  player.inv = 0; player.speedT = 0; player.weapon = null;
+  player.special = 0; specialFx = null; banner = null;
   resetPlayer();
   camX = 0; paused = false;
   state = 'play'; stateT = 0;
@@ -369,7 +380,10 @@ function startLevel(i){
              active:false, dead:false };
   }
   shots = []; parts = [];
-  player.hearts = 3; player.inv = 0; player.speedT = 0; player.weapon = null;
+  // corações extras conquistados (🍰/💖) acompanham as próximas fases
+  player.hearts = player.maxHearts;
+  player.inv = 0; player.speedT = 0; player.weapon = null;
+  player.special = 0; specialFx = null; banner = null;
   resetPlayer();
   camX = 0;
   state = 'intro'; stateT = 0;
@@ -493,9 +507,22 @@ function applyFood(t){
   if(t === 'M'){ player.speedT = 600; S.power(); }                    // 🍝 10s
   else if(t === 'P'){ player.weapon = {t:'pizza',  time:900}; S.power(); } // 🍕 15s
   else if(t === 'G'){ player.weapon = {t:'gelato', time:900}; S.power(); } // 🍦 15s
-  else if(t === 'H'){                                                 // 🍰 cura 1 ❤️
-    if(player.hearts < 3){ player.hearts++; heartBurst(player.x+13, player.y, 3); }
+  else if(t === 'H'){                                                 // 🍰
+    if(player.hearts < player.maxHearts) player.hearts++;             // cura
+    else if(player.maxHearts < 6){                                    // vida cheia:
+      player.maxHearts++; player.hearts++;                            // coração extra!
+      showBanner('Coração extra! ele te acompanha nas próximas fases ❤️');
+    }
+    heartBurst(player.x+13, player.y, 3);
     S.heal();
+  }
+  else if(t === 'T'){                                                 // 💖 da Tayna
+    if(player.maxHearts < 6) player.maxHearts++;
+    player.hearts = player.maxHearts;
+    player.special = 1;
+    heartBurst(player.x+13, player.y, 10);
+    showBanner('Recompensa do amor da Tayna! 💖 especial liberado (S)');
+    S.kiss();
   }
   S.coin();
 }
@@ -674,6 +701,29 @@ function updatePlay(){
                Math.min(boss.x, lv.barrier*TILE - boss.w - 6));
       if(sb && overlap(sb, boss)) hitBoss();
       if(boss.frozen <= 0 && overlap(player, boss)) hurtPlayer();
+    }
+    // 💖 ESPECIAL da Tayna: libera quando o boss chega à metade da vida
+    const specOk = boss.active && player.special === 1 && boss.hp*2 <= boss.maxHp;
+    if(specOk && !boss.halfWarned){
+      boss.halfWarned = true;
+      showBanner(TOUCH ? '💖 ESPECIAL PRONTO! Toque no botão 💖'
+                       : '💖 ESPECIAL PRONTO! Aperte S');
+    }
+    if(jp.spec && specOk){
+      player.special = 2;
+      specialFx = { x:player.x+13, y:player.y+8, t:0 };
+      S.kiss();
+    }
+    if(specialFx){                       // o coração voa até o boss
+      specialFx.t++;
+      const tx = boss.x + boss.w/2, ty = boss.y + 34;
+      specialFx.x += (tx - specialFx.x) * 0.14;
+      specialFx.y += (ty - specialFx.y) * 0.14;
+      if(Math.abs(specialFx.x-tx) < 16 && Math.abs(specialFx.y-ty) < 16){
+        heartBurst(tx, boss.y, 14); shake = 14;
+        boss.inv = 0; boss.hp = 1; hitBoss();   // conta como o hit final 💘
+        specialFx = null;
+      }
     }
   }
 
@@ -1049,7 +1099,7 @@ function drawGate(){
     if(frame % 8 < 4) txt('✨', x+36, 10*TILE, 26);
   }
 }
-const FOOD_EMOJI = { M:'🍝', P:'🍕', G:'🍦', H:'🍰' };
+const FOOD_EMOJI = { M:'🍝', P:'🍕', G:'🍦', H:'🍰', T:'💖' };
 function drawItems(){
   for(const it of lv.items){
     if(it.got) continue;
@@ -1103,10 +1153,13 @@ function drawHUD(){
   const grd = ctx.createLinearGradient(0, 0, 0, 96);
   grd.addColorStop(0, 'rgba(0,0,0,.32)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = grd; ctx.fillRect(0, 0, W, 96);
-  // corações
-  for(let i=0;i<3;i++) txt(i < player.hearts ? '❤️' : '🖤', 34+i*36, 38, 26);
+  // corações (containers extras de 🍰/💖 aparecem aqui também)
+  for(let i=0;i<player.maxHearts;i++)
+    txt(i < player.hearts ? '❤️' : '🖤', 32+i*30, 38, 24);
   // contador de comidas
-  txtShadow('🍝 ' + foods, 160, 38, 22, '#fff', 'left');
+  txtShadow('🍝 ' + foods, 32 + player.maxHearts*30 + 16, 38, 22, '#fff', 'left');
+  // indicador do especial 💖 (ganho da Tayna)
+  if(player.special === 1) txtShadow('💖 S', 34, 116, 18, '#ff9ec7', 'left');
   // fase
   txtShadow(lv.tutorial ? 'Treino 🎓' : 'Fase ' + (levelIdx+1) + '/6', W-20, 38, 18, '#fff', 'right');
   // botão "?" de ajuda
@@ -1130,6 +1183,22 @@ function drawHUD(){
     rr(W/2-150, 42, 300*(boss.hp/boss.maxHp), 14, IT_RED);
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
     ctx.strokeRect(W/2-152, 40, 304, 18);
+    // botão do especial quando disponível
+    if(player.special === 1 && boss.hp*2 <= boss.maxHp){
+      const on = frame % 30 < 18;
+      rr(SPE_BTN.x, SPE_BTN.y, SPE_BTN.w, SPE_BTN.h,
+         on ? 'rgba(255,80,140,.9)' : 'rgba(160,40,90,.9)');
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.strokeRect(SPE_BTN.x, SPE_BTN.y, SPE_BTN.w, SPE_BTN.h);
+      txt('💖 ESPECIAL (S)', SPE_BTN.x + SPE_BTN.w/2, SPE_BTN.y + 29, 18, '#fff');
+    }
+  }
+  // aviso temporário (banner)
+  if(banner && banner.t > 0){
+    ctx.globalAlpha = Math.min(1, banner.t/30);
+    txtShadow(banner.text, W/2, 160, 22, '#ffd6e0');
+    ctx.globalAlpha = 1;
+    banner.t--;
   }
 }
 
@@ -1295,14 +1364,14 @@ function drawHelp(){
     'ESPAÇO, W ou ↑  —  pular',
     'J ou X  —  atacar / arremessar',
     'K ou C (segurar)  —  escudo',
-    'ENTER  —  confirmar',
+    'S  —  especial da Tayna 💖',
     '? ou H  —  esta ajuda'];
   const tc = ['📱  TOQUE (celular)',
     '◀ ▶  —  andar',
     '⬆  —  pular',
     '⚔️  —  atacar / arremessar',
     '🛡️ (segurar)  —  escudo',
-    'toque na tela  —  confirmar',
+    'botão 💖  —  especial da Tayna',
     'botão "?"  —  esta ajuda'];
   for(let i=0; i<kb.length; i++){
     txt(kb[i], 90,  112 + i*32, i ? 17 : 19, i ? '#fff' : '#ffd76e', 'left');
@@ -1530,6 +1599,8 @@ function drawPlay(){
   }
   drawShots();
   drawParts();
+  if(specialFx)        // 💖 voando até o boss
+    txt('💖', specialFx.x - camX, specialFx.y, 34 + Math.sin(specialFx.t*0.4)*6);
   // sombra do Filipe projetada no chão abaixo dele
   const sgy = groundYBelow(player.x+13, player.y+player.h);
   if(sgy > 0){
