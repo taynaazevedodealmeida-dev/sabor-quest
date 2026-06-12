@@ -343,7 +343,7 @@ function buildTutorial(){
     { c:18, lines:['Aperte ESPAÇO ou W','para pular!'].concat(TOUCH?['(no celular: ⬆ na tela)']:[]) },
     { c:31, lines:['Aperte J ou X para atacar','com a espada ⚔️'].concat(TOUCH?['(no celular: ⚔️ na tela)']:[]) },
     { c:44, lines:['Segure K ou C para defender','com o escudo 🛡️'].concat(TOUCH?['(no celular: segure 🛡️)']:[]) },
-    { c:55, lines:['Colete comidas:','🍝 corre rápido','🍕 atira pepperoni','🍦 congela inimigos','🍰 recupera 1 coração'] },
+    { c:55, lines:['Colete comidas:','🍝 corre rápido','🍕 atira pepperoni','🍦 congela (acerte de novo','para quebrar!)','🍰 recupera 1 coração'] },
   ];
   return lv;
 }
@@ -508,6 +508,7 @@ function swordBox(){
     : { x:player.x-reach, y:player.y+4, w:player.w+reach+4, h:player.h*0.8 };
 }
 function hitFoe(f){
+  if(f.frozen > 0) puff(f.x+f.w/2, f.y+f.h/2, '#aee3ff', 12);  // estilhaça o gelo!
   if(lv.tutorial) f.hidden = 150;       // no treino o boneco reaparece
   else f.dead = true;
   puff(f.x+f.w/2, f.y+f.h/2,
@@ -615,11 +616,13 @@ function updatePlay(){
       f.x += f.vx;
     }
     if(sb && overlap(sb, f)){ hitFoe(f); continue; }
-    if(f.frozen <= 0 && overlap(pbox, f)){
+    if(overlap(pbox, f)){
       // pisão estilo Mario: cair em cima derrota o inimigo e quica
+      // (funciona também em inimigo congelado — estilhaça!)
       if(player.vy > 2 && player.y + player.h < f.y + f.h){
         hitFoe(f); player.vy = -8.5; continue;
       }
+      if(f.frozen > 0) continue;              // congelado é inofensivo
       if(lv.tutorial || keys.shield){
         // escudo bloqueia e empurra o inimigo (no treino ninguém machuca)
         if(keys.shield){
@@ -637,13 +640,13 @@ function updatePlay(){
     if(solidAt(s.x+s.w/2, s.y+s.h/2)) s.life = 0;
     for(const f of foes){
       if(f.dead || f.hidden > 0 || !overlap(s, f)) continue;
-      if(s.t === 'gelato'){ f.frozen = 180; S.freeze(); }  // congela 3s ❄️
-      else hitFoe(f);
+      if(s.t === 'gelato' && f.frozen <= 0){ f.frozen = 180; S.freeze(); } // congela 3s ❄️
+      else hitFoe(f);   // pepperoni — ou qualquer acerto em alvo congelado: quebra!
       s.life = 0; break;
     }
     if(boss && !boss.dead && s.life > 0 && overlap(s, boss)){
-      if(s.t === 'gelato'){ boss.frozen = 180; S.freeze(); }
-      else hitBoss();
+      if(s.t === 'gelato' && boss.frozen <= 0){ boss.frozen = 180; S.freeze(); }
+      else hitBoss();   // gelato em boss congelado também tira vida
       s.life = 0;
     }
   }
@@ -1305,7 +1308,7 @@ function drawHelp(){
     txt(kb[i], 90,  112 + i*32, i ? 17 : 19, i ? '#fff' : '#ffd76e', 'left');
     txt(tc[i], 530, 112 + i*32, i ? 17 : 19, i ? '#fff' : '#ffd76e', 'left');
   }
-  txtShadow('🍝 corre 10s   🍕 pepperoni 15s   🍦 congela 3s   🍰 +1 ❤️', W/2, 392, 18, '#ffe28a');
+  txtShadow('🍝 corre 10s   🍕 pepperoni   🍦 congela (acerte p/ quebrar)   🍰 +1 ❤️', W/2, 392, 17, '#ffe28a');
   txt('Você tem 3 corações ❤️ — encostar em inimigos tira 1.', W/2, 428, 16, '#ffb3c1');
   txt('O escudo 🛡️ bloqueia todo o dano!', W/2, 456, 16, '#ffb3c1');
   if(frame % 60 < 36) txt('? / ENTER / toque ▸ voltar ao jogo', W/2, 505, 16, '#fff');
