@@ -53,7 +53,7 @@ const ctx = cv.getContext('2d');
 const W = 960, H = 540;          // resolução interna do jogo
 const TILE = 36, ROWS = 15;      // grade de tiles (15 linhas x N colunas)
 const GRAV = 0.6;                // gravidade
-const JUMPV = -13.4;             // impulso de pulo
+const JUMPV = -14.6;             // impulso de pulo (folga p/ plataformas de 3 tiles)
 const WALK = 3.4;                // velocidade base
 const RUNV = 5.6;                // velocidade com macarrão 🍝
 
@@ -71,9 +71,15 @@ addEventListener('resize', fit); fit();
 /* ---------------------------------------------------------------------
    2. ÁUDIO — sons simples com Web Audio API
 --------------------------------------------------------------------- */
-let AC = null;
+let AC = null, MASTER = null;
 function audio(){
-  if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if(!AC){
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    // mixer com compressor: vários sons juntos não estouram/distorcem
+    const comp = AC.createDynamicsCompressor();
+    MASTER = AC.createGain(); MASTER.gain.value = 0.8;
+    MASTER.connect(comp); comp.connect(AC.destination);
+  }
   if(AC.state === 'suspended') AC.resume();
   return AC;
 }
@@ -87,7 +93,7 @@ function tone(f0, f1, dur, type, vol, when){
     o.frequency.exponentialRampToValueAtTime(Math.max(f1,1), t + dur);
     g.gain.setValueAtTime(vol, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.connect(g); g.connect(a.destination);
+    o.connect(g); g.connect(MASTER);
     o.start(t); o.stop(t + dur + 0.05);
   }catch(e){ /* áudio bloqueado até a primeira interação — tudo bem */ }
 }
@@ -101,6 +107,7 @@ const S = {
   foeDie : () => tone(500, 100, .15, 'triangle', .14),
   clang  : () => tone(1100,300, .10, 'square',   .10),
   freeze : () => tone(1500,400, .30, 'sine',     .11),
+  heal   : () => [659,784,988].forEach((f,i)=>tone(f,f,.14,'sine',.12,i*.09)),
   bossHit: () => tone(180,  60, .20, 'square',   .16),
   win    : () => [523,659,784,1047,784,1047,1319].forEach((f,i)=>tone(f,f,.15,'square',.11,i*.13)),
   kiss   : () => [784,988,1175,1568,1976].forEach((f,i)=>tone(f,f,.22,'sine',.13,i*.13)),
@@ -186,6 +193,8 @@ const LEVELS = [
     plat(lv,18,10,3); plat(lv,38,10,4); plat(lv,70,10,3); plat(lv,90,9,4);
     food(lv,12,11,'M'); food(lv,19,8,'M'); food(lv,39,8,'P');
     food(lv,72,8,'M');  food(lv,91,7,'M');
+    food(lv,8,11,'M');  food(lv,28,11,'H'); food(lv,50,11,'P');
+    food(lv,66,11,'M'); food(lv,80,11,'G'); food(lv,100,11,'H');
     foe(lv,25,'tom'); foe(lv,45,'tom'); foe(lv,75,'tom'); foe(lv,95,'tom');
     lv.goal = 113; return lv; } },
 
@@ -197,6 +206,8 @@ const LEVELS = [
     plat(lv,85,10,3); plat(lv,95,8,3); plat(lv,105,10,3);
     food(lv,21,8,'M'); food(lv,45,6,'P'); food(lv,61,8,'M');
     food(lv,96,6,'G'); food(lv,110,11,'M');
+    food(lv,10,11,'M'); food(lv,25,11,'H'); food(lv,50,11,'M');
+    food(lv,66,11,'G'); food(lv,80,11,'H');  food(lv,115,11,'P');
     foe(lv,15,'tom'); foe(lv,40,'tom'); foe(lv,55,'tom');
     foe(lv,65,'oli'); foe(lv,88,'oli'); foe(lv,100,'oli');
     lv.goal = 123; return lv; } },
@@ -209,6 +220,8 @@ const LEVELS = [
     plat(lv,100,10,3); plat(lv,108,8,3); plat(lv,116,10,3);
     food(lv,11,8,'M'); food(lv,39,6,'G'); food(lv,71,6,'P');
     food(lv,80,8,'M'); food(lv,105,8,'M'); food(lv,117,8,'G');
+    food(lv,5,11,'M');  food(lv,30,11,'H'); food(lv,45,11,'P');
+    food(lv,65,11,'M'); food(lv,85,11,'H'); food(lv,120,11,'G');
     foe(lv,8,'tom'); foe(lv,28,'tom'); foe(lv,45,'tom');
     foe(lv,60,'oli'); foe(lv,75,'oli'); foe(lv,85,'oli');
     foe(lv,100,'oli'); foe(lv,110,'oli');
@@ -224,6 +237,8 @@ const LEVELS = [
     plat(lv,112,10,3); plat(lv,118,8,3); plat(lv,126,10,4); plat(lv,134,8,3);
     food(lv,23,5,'M'); food(lv,43,6,'P'); food(lv,83,4,'G'); food(lv,91,8,'M');
     food(lv,119,6,'M'); food(lv,127,8,'G'); food(lv,135,6,'P');
+    food(lv,6,11,'M');  food(lv,32,11,'H'); food(lv,55,11,'P'); food(lv,72,11,'M');
+    food(lv,95,11,'H'); food(lv,120,11,'G'); food(lv,140,11,'M');
     foe(lv,10,'tom'); foe(lv,36,'tom'); foe(lv,48,'tom');
     foe(lv,55,'oli'); foe(lv,72,'oli'); foe(lv,88,'oli'); foe(lv,95,'oli');
     foe(lv,115,'oli'); foe(lv,127,'oli'); foe(lv,140,'oli');
@@ -241,6 +256,8 @@ const LEVELS = [
     food(lv,9,8,'M');  food(lv,32,6,'G'); food(lv,56,8,'M'); food(lv,62,6,'P');
     food(lv,87,6,'M'); food(lv,93,8,'G'); food(lv,121,8,'M');
     food(lv,133,8,'P'); food(lv,141,6,'G');
+    food(lv,5,11,'M');  food(lv,25,11,'H'); food(lv,50,11,'P');  food(lv,65,11,'H');
+    food(lv,90,11,'M'); food(lv,100,11,'G'); food(lv,125,11,'H'); food(lv,150,11,'M');
     foe(lv,6,'tom');  foe(lv,23,'tom'); foe(lv,38,'tom');
     foe(lv,50,'oli'); foe(lv,58,'oli'); foe(lv,66,'oli');
     foe(lv,82,'oli'); foe(lv,90,'oli'); foe(lv,98,'oli');
@@ -255,6 +272,8 @@ const LEVELS = [
     plat(lv,70,10,3); plat(lv,78,8,3);  plat(lv,86,10,3);
     food(lv,31,8,'P'); food(lv,39,6,'G'); food(lv,47,8,'M');
     food(lv,71,8,'M'); food(lv,79,6,'P'); food(lv,87,8,'G');
+    food(lv,5,11,'M');  food(lv,15,11,'H'); food(lv,40,11,'P'); food(lv,65,11,'H');
+    food(lv,90,11,'M'); food(lv,105,11,'H'); food(lv,110,11,'G');
     foe(lv,14,'oli'); foe(lv,28,'tom'); foe(lv,35,'oli'); foe(lv,44,'oli');
     foe(lv,68,'oli'); foe(lv,76,'oli'); foe(lv,83,'tom'); foe(lv,90,'oli');
     lv.bossCol = 122; lv.barrier = 136; lv.taynaCol = 142;
@@ -276,6 +295,7 @@ let foods = 0;         // comidas coletadas (total da jornada)
 const player = {
   x:0, y:0, w:26, h:44, vx:0, vy:0, face:1,
   onGround:false, hearts:3, inv:0, jumpT:0,
+  jumpBuf:0, coyote:0, blockCd:0,
   swordT:0,            // frames restantes do golpe de espada
   atkCd:0,             // cooldown de ataque
   speedT:0,            // 🍝 timer de velocidade
@@ -302,7 +322,7 @@ function placeFoes(lv){
     }
     const h = f.t === 'tom' ? 26 : f.t === 'dum' ? 42 : 22;
     return { x:f.col*TILE+4, y:r*TILE-h, w:28, h,
-             vx: f.t === 'dum' ? 0 : (f.t==='tom'?1.0:1.6)*(Math.random()<.5?1:-1),
+             vx: f.t === 'dum' ? 0 : (f.t==='tom'?0.7:1.1)*(Math.random()<.5?1:-1),
              t:f.t, frozen:0, hidden:0, dead:false,
              // patrulha perto do posto: inimigo não vagueia até o spawn
              bound: f.bound || [(f.col-5)*TILE, (f.col+5)*TILE] };
@@ -314,7 +334,7 @@ function buildTutorial(){
   lv.tutorial = true;
   ground(lv,0,81);
   plat(lv,22,10,3);                                  // plataforma p/ testar o pulo
-  food(lv,58,11,'M'); food(lv,61,11,'P'); food(lv,67,11,'G');
+  food(lv,58,11,'M'); food(lv,61,11,'P'); food(lv,67,11,'G'); food(lv,73,11,'H');
   foe(lv,36,'dum'); foe(lv,64,'dum'); foe(lv,70,'dum');   // bonecos de treino
   foe(lv,48,'tom', [46*TILE, 52*TILE]);              // tomate inofensivo p/ testar o escudo
   lv.gate = 76;                                      // "Pronto para a aventura!"
@@ -323,7 +343,7 @@ function buildTutorial(){
     { c:18, lines:['Aperte ESPAÇO ou W','para pular!'].concat(TOUCH?['(no celular: ⬆ na tela)']:[]) },
     { c:31, lines:['Aperte J ou X para atacar','com a espada ⚔️'].concat(TOUCH?['(no celular: ⚔️ na tela)']:[]) },
     { c:44, lines:['Segure K ou C para defender','com o escudo 🛡️'].concat(TOUCH?['(no celular: segure 🛡️)']:[]) },
-    { c:55, lines:['Colete comidas:','🍝 corre rápido','🍕 atira pepperoni','🍦 congela inimigos'] },
+    { c:55, lines:['Colete comidas:','🍝 corre rápido','🍕 atira pepperoni','🍦 congela inimigos','🍰 recupera 1 coração'] },
   ];
   return lv;
 }
@@ -362,19 +382,24 @@ function fullReset(){
 /* ---------------------------------------------------------------------
    6. FÍSICA E COLISÃO
 --------------------------------------------------------------------- */
-function solidAt(px, py){
+function cellAt(px, py){
   const c = Math.floor(px/TILE), r = Math.floor(py/TILE);
-  if(c < 0 || c >= lv.cols) return true;            // paredes nas bordas
+  if(c < 0 || c >= lv.cols) return '#';             // paredes nas bordas
   // Portão do boss: sólido enquanto o boss vive
   if(lv.barrier !== null && boss && !boss.dead &&
-     c >= lv.barrier && c <= lv.barrier+1 && r >= 8 && r < ROWS) return true;
-  if(r < 0 || r >= ROWS) return false;
-  const ch = lv.grid[r][c];
-  return ch === '#' || ch === '=';
+     c >= lv.barrier && c <= lv.barrier+1 && r >= 8 && r < ROWS) return '#';
+  if(r < 0 || r >= ROWS) return ' ';
+  return lv.grid[r][c];
+}
+function solidAt(px, py){ return cellAt(px, py) === '#'; }   // bloqueia em todas as direções
+function standAt(px, py){                                    // dá para pisar em cima
+  const ch = cellAt(px, py); return ch === '#' || ch === '=';
 }
 // Move um retângulo com colisão nos tiles. Retorna flags.
+// Plataformas '=' são "1-via": atravessa por baixo/lados, pousa por cima.
 function moveRect(e){
   const out = { wall:false, ground:false, ceil:false };
+  const prevB = e.y + e.h;                          // base antes de mover
   // eixo X
   e.x += e.vx;
   if(e.vx > 0){
@@ -389,7 +414,14 @@ function moveRect(e){
   // eixo Y
   e.y += e.vy;
   if(e.vy > 0){
-    if(solidAt(e.x+2, e.y+e.h) || solidAt(e.x+e.w/2, e.y+e.h) || solidAt(e.x+e.w-2, e.y+e.h)){
+    let land = false;
+    for(const fx of [e.x+2, e.x+e.w/2, e.x+e.w-2]){
+      const ch = cellAt(fx, e.y+e.h);
+      if(ch === '#'){ land = true; break; }
+      // plataforma: só pousa se vinha de cima dela
+      if(ch === '=' && prevB <= Math.floor((e.y+e.h)/TILE)*TILE + 4){ land = true; break; }
+    }
+    if(land){
       e.y = Math.floor((e.y+e.h)/TILE)*TILE - e.h - 0.01; e.vy = 0; out.ground = true;
     }
   }else if(e.vy < 0){
@@ -440,7 +472,10 @@ function updateParts(){
 --------------------------------------------------------------------- */
 function hurtPlayer(){
   if(player.inv > 0) return;
-  if(keys.shield){ S.clang(); player.vx = -player.face*4; return; } // 🛡️ bloqueado!
+  if(keys.shield){                                  // 🛡️ bloqueado!
+    if(player.blockCd <= 0){ S.clang(); player.blockCd = 18; }
+    player.vx = -player.face*4; return;
+  }
   player.hearts--; player.inv = 90;
   player.vx = -player.face*5; player.vy = -5;
   S.hurt();
@@ -457,13 +492,19 @@ function applyFood(t){
   if(t === 'M'){ player.speedT = 600; S.power(); }                    // 🍝 10s
   else if(t === 'P'){ player.weapon = {t:'pizza',  time:900}; S.power(); } // 🍕 15s
   else if(t === 'G'){ player.weapon = {t:'gelato', time:900}; S.power(); } // 🍦 15s
+  else if(t === 'H'){                                                 // 🍰 cura 1 ❤️
+    if(player.hearts < 3){ player.hearts++; heartBurst(player.x+13, player.y, 3); }
+    S.heal();
+  }
   S.coin();
 }
 function swordBox(){
-  const reach = 32;
+  // o golpe cobre o próprio corpo + alcance à frente:
+  // inimigo grudado no Filipe também é atingido (sem "fantasmas")
+  const reach = 34;
   return player.face > 0
-    ? { x:player.x+player.w, y:player.y+8, w:reach, h:player.h*0.65 }
-    : { x:player.x-reach,    y:player.y+8, w:reach, h:player.h*0.65 };
+    ? { x:player.x-4,     y:player.y+4, w:player.w+reach+4, h:player.h*0.8 }
+    : { x:player.x-reach, y:player.y+4, w:player.w+reach+4, h:player.h*0.8 };
 }
 function hitFoe(f){
   if(lv.tutorial) f.hidden = 150;       // no treino o boneco reaparece
@@ -487,13 +528,21 @@ function hitBoss(){
 
 function updatePlay(){
   // ------- movimento -------
-  const spd = (player.speedT > 0 ? RUNV : WALK) * (keys.shield ? 0.35 : 1);
+  const spd = (player.speedT > 0 ? RUNV : WALK) * (keys.shield ? 0.6 : 1);
   player.vx = 0;
   if(keys.left ){ player.vx = -spd; player.face = -1; }
   if(keys.right){ player.vx =  spd; player.face =  1; }
   player.walking = player.vx !== 0;
 
-  if(jp.jump && player.onGround){ player.vy = JUMPV; player.jumpT = 0; S.jump(); }
+  // buffer de pulo (apertar um pouco antes de pousar vale) + coyote time
+  // (pular logo depois de sair da beirada ainda funciona)
+  if(jp.jump) player.jumpBuf = 7;
+  else if(player.jumpBuf > 0) player.jumpBuf--;
+  player.coyote = player.onGround ? 8 : Math.max(0, player.coyote - 1);
+  if(player.jumpBuf > 0 && player.coyote > 0){
+    player.vy = JUMPV; player.jumpT = 0; player.jumpBuf = 0; player.coyote = 0;
+    S.jump();
+  }
   player.jumpT++;
   // pulo variável: soltar cedo encurta o pulo, mas com 10 frames de carência
   // para que um toque rápido (celular!) ainda dê um pulo decente
@@ -512,14 +561,15 @@ function updatePlay(){
       shots.push({ x:player.x + (player.face>0 ? player.w : -10),
                    y:player.y+16, w:12, h:12,
                    vx:8*player.face, t:player.weapon.t, life:80 });
-      player.atkCd = 18; S.shoot();
+      player.atkCd = 12; S.shoot();
     }else{
-      player.swordT = 14; player.atkCd = 20; S.sword();
+      player.swordT = 14; player.atkCd = 10; S.sword();
     }
   }
 
   // ------- timers -------
   if(player.inv > 0) player.inv--;
+  if(player.blockCd > 0) player.blockCd--;
   if(player.speedT > 0) player.speedT--;
   if(player.weapon && --player.weapon.time <= 0) player.weapon = null;
 
@@ -529,14 +579,16 @@ function updatePlay(){
   // ------- comidas -------
   for(const it of lv.items){
     if(it.got) continue;
-    if(Math.abs(player.x+13-it.x) < 26 && Math.abs(player.y+22-it.y) < 30){
+    if(Math.abs(player.x+13-it.x) < 34 && Math.abs(player.y+22-it.y) < 44){
       it.got = true; applyFood(it.t);
       puff(it.x, it.y, '#ffd700', 6);
     }
   }
 
   // ------- inimigos -------
-  const sb = player.swordT > 4 && player.swordT < 13 ? swordBox() : null;
+  const sb = player.swordT > 2 ? swordBox() : null;
+  // hitbox de dano do jogador um pouco menor que o sprite (mais justo)
+  const pbox = { x:player.x+4, y:player.y+6, w:player.w-8, h:player.h-6 };
   for(const f of foes){
     if(f.dead) continue;
     if(f.hidden > 0){ f.hidden--; continue; }    // boneco de treino derrubado
@@ -544,17 +596,24 @@ function updatePlay(){
     else if(f.t !== 'dum'){
       // anda; vira na parede ou na beirada
       const front = f.vx > 0 ? f.x+f.w+2 : f.x-2;
-      if(solidAt(front, f.y+f.h/2) || !solidAt(front, f.y+f.h+6)) f.vx = -f.vx;
+      if(solidAt(front, f.y+f.h/2) || !standAt(front, f.y+f.h+6)) f.vx = -f.vx;
       // patrulha limitada (tutorial)
       if(f.bound && (f.x < f.bound[0] || f.x > f.bound[1]))
         f.vx = Math.abs(f.vx) * (f.x < f.bound[0] ? 1 : -1);
       f.x += f.vx;
     }
     if(sb && overlap(sb, f)){ hitFoe(f); continue; }
-    if(f.frozen <= 0 && overlap(player, f)){
-      if(lv.tutorial){
-        // no treino ninguém machuca; o escudo demonstra o bloqueio
-        if(keys.shield){ S.clang(); f.vx = -f.vx; f.x += f.vx*8; }
+    if(f.frozen <= 0 && overlap(pbox, f)){
+      // pisão estilo Mario: cair em cima derrota o inimigo e quica
+      if(player.vy > 2 && player.y + player.h < f.y + f.h){
+        hitFoe(f); player.vy = -8.5; continue;
+      }
+      if(lv.tutorial || keys.shield){
+        // escudo bloqueia e empurra o inimigo (no treino ninguém machuca)
+        if(keys.shield){
+          if(player.blockCd <= 0){ S.clang(); player.blockCd = 18; }
+          f.vx = (f.x+f.w/2 < player.x+13) ? -Math.abs(f.vx||1) : Math.abs(f.vx||1);
+        }
       }else hurtPlayer();
     }
   }
@@ -591,7 +650,7 @@ function updatePlay(){
         const dir = player.x > boss.x ? 1 : -1;
         if(boss.chargeT > 0){ boss.chargeT--; }                 // investida!
         else if(boss.t % 180 === 0){ boss.chargeT = 55; }
-        boss.vx = dir * (boss.chargeT > 0 ? 4.2 : 1.1);
+        boss.vx = dir * (boss.chargeT > 0 ? 3.4 : 0.9);
       }
       boss.vy = Math.min(boss.vy + GRAV, 14);
       moveRect(boss);
@@ -904,7 +963,7 @@ function drawGate(){
     if(frame % 8 < 4) txt('✨', x+36, 10*TILE, 26);
   }
 }
-const FOOD_EMOJI = { M:'🍝', P:'🍕', G:'🍦' };
+const FOOD_EMOJI = { M:'🍝', P:'🍕', G:'🍦', H:'🍰' };
 function drawItems(){
   for(const it of lv.items){
     if(it.got) continue;
@@ -1150,7 +1209,7 @@ function drawHelp(){
     txt(kb[i], 90,  112 + i*32, i ? 17 : 19, i ? '#fff' : '#ffd76e', 'left');
     txt(tc[i], 530, 112 + i*32, i ? 17 : 19, i ? '#fff' : '#ffd76e', 'left');
   }
-  txtShadow('🍝 velocidade 10s    🍕 pepperoni 15s    🍦 congela 3s', W/2, 392, 18, '#ffe28a');
+  txtShadow('🍝 corre 10s   🍕 pepperoni 15s   🍦 congela 3s   🍰 +1 ❤️', W/2, 392, 18, '#ffe28a');
   txt('Você tem 3 corações ❤️ — encostar em inimigos tira 1.', W/2, 428, 16, '#ffb3c1');
   txt('O escudo 🛡️ bloqueia todo o dano!', W/2, 456, 16, '#ffb3c1');
   if(frame % 60 < 36) txt('? / ENTER / toque ▸ voltar ao jogo', W/2, 505, 16, '#fff');
