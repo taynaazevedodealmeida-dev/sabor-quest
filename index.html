@@ -195,7 +195,7 @@ const LEVELS = [
     food(lv,72,8,'M');  food(lv,91,7,'M');
     food(lv,8,11,'M');  food(lv,28,11,'H'); food(lv,50,11,'P');
     food(lv,66,11,'M'); food(lv,80,11,'G'); food(lv,100,11,'H');
-    foe(lv,25,'tom'); foe(lv,45,'tom'); foe(lv,75,'tom'); foe(lv,95,'tom');
+    foe(lv,25,'tom'); foe(lv,75,'tom'); foe(lv,95,'tom');
     lv.goal = 113; return lv; } },
 
 { text:'Era uma vez, uma história entre conversantes',
@@ -208,8 +208,8 @@ const LEVELS = [
     food(lv,96,6,'G'); food(lv,110,11,'M');
     food(lv,10,11,'M'); food(lv,25,11,'H'); food(lv,50,11,'M');
     food(lv,66,11,'G'); food(lv,80,11,'H');  food(lv,115,11,'P');
-    foe(lv,15,'tom'); foe(lv,40,'tom'); foe(lv,55,'tom');
-    foe(lv,65,'oli'); foe(lv,88,'oli'); foe(lv,100,'oli');
+    foe(lv,15,'tom'); foe(lv,40,'tom');
+    foe(lv,65,'oli'); foe(lv,88,'oli');
     lv.goal = 123; return lv; } },
 
 { text:'Era uma vez, uma história entre flertes',
@@ -222,9 +222,8 @@ const LEVELS = [
     food(lv,80,8,'M'); food(lv,105,8,'M'); food(lv,117,8,'G');
     food(lv,5,11,'M');  food(lv,30,11,'H'); food(lv,45,11,'P');
     food(lv,65,11,'M'); food(lv,85,11,'H'); food(lv,120,11,'G');
-    foe(lv,8,'tom'); foe(lv,28,'tom'); foe(lv,45,'tom');
-    foe(lv,60,'oli'); foe(lv,75,'oli'); foe(lv,85,'oli');
-    foe(lv,100,'oli'); foe(lv,110,'oli');
+    foe(lv,8,'tom'); foe(lv,28,'tom');
+    foe(lv,60,'oli'); foe(lv,75,'oli'); foe(lv,100,'oli');
     lv.goal = 132; return lv; } },
 
 { text:'Era uma vez, uma história entre encontros',
@@ -239,9 +238,9 @@ const LEVELS = [
     food(lv,119,6,'M'); food(lv,127,8,'G'); food(lv,135,6,'P');
     food(lv,6,11,'M');  food(lv,32,11,'H'); food(lv,55,11,'P'); food(lv,72,11,'M');
     food(lv,95,11,'H'); food(lv,120,11,'G'); food(lv,140,11,'M');
-    foe(lv,10,'tom'); foe(lv,36,'tom'); foe(lv,48,'tom');
-    foe(lv,55,'oli'); foe(lv,72,'oli'); foe(lv,88,'oli'); foe(lv,95,'oli');
-    foe(lv,115,'oli'); foe(lv,127,'oli'); foe(lv,140,'oli');
+    foe(lv,10,'tom'); foe(lv,36,'tom');
+    foe(lv,55,'oli'); foe(lv,72,'oli'); foe(lv,95,'oli');
+    foe(lv,118,'oli'); foe(lv,140,'oli');
     lv.goal = 144; return lv; } },
 
 { text:'Era uma vez, uma história entre apaixonados',
@@ -258,10 +257,9 @@ const LEVELS = [
     food(lv,133,8,'P'); food(lv,141,6,'G');
     food(lv,5,11,'M');  food(lv,25,11,'H'); food(lv,50,11,'P');  food(lv,65,11,'H');
     food(lv,90,11,'M'); food(lv,100,11,'G'); food(lv,125,11,'H'); food(lv,150,11,'M');
-    foe(lv,6,'tom');  foe(lv,23,'tom'); foe(lv,38,'tom');
-    foe(lv,50,'oli'); foe(lv,58,'oli'); foe(lv,66,'oli');
-    foe(lv,82,'oli'); foe(lv,90,'oli'); foe(lv,98,'oli');
-    foe(lv,118,'oli'); foe(lv,127,'oli'); foe(lv,135,'oli'); foe(lv,148,'oli');
+    foe(lv,6,'tom');  foe(lv,38,'tom');
+    foe(lv,50,'oli'); foe(lv,66,'oli'); foe(lv,82,'oli');
+    foe(lv,98,'oli'); foe(lv,118,'oli'); foe(lv,135,'oli');
     lv.goal = 153; return lv; } },
 
 { text:'Era uma vez... uma história de amor',
@@ -274,8 +272,8 @@ const LEVELS = [
     food(lv,71,8,'M'); food(lv,79,6,'P'); food(lv,87,8,'G');
     food(lv,5,11,'M');  food(lv,15,11,'H'); food(lv,40,11,'P'); food(lv,65,11,'H');
     food(lv,90,11,'M'); food(lv,105,11,'H'); food(lv,110,11,'G');
-    foe(lv,14,'oli'); foe(lv,28,'tom'); foe(lv,35,'oli'); foe(lv,44,'oli');
-    foe(lv,68,'oli'); foe(lv,76,'oli'); foe(lv,83,'tom'); foe(lv,90,'oli');
+    foe(lv,14,'oli'); foe(lv,28,'tom'); foe(lv,44,'oli');
+    foe(lv,76,'oli'); foe(lv,83,'tom');
     lv.bossCol = 122; lv.barrier = 136; lv.taynaCol = 142;
     return lv; } },
 ];
@@ -835,7 +833,7 @@ function miniT(x, y, s, opts){
 
 // Boneco de treino 🎯 (tutorial)
 function drawDum(f){
-  const x = f.x, y = f.y;
+  const x = f.x - camX, y = f.y;
   rr(x+12, y+14, 5, 28, '#7a4a21');                     // poste
   rr(x+1,  y+18, 26, 5, '#7a4a21');                     // braços de madeira
   rr(x+4,  y, 20, 16, '#e8d29a');                       // cabeça de saco
@@ -847,7 +845,7 @@ function drawDum(f){
 
 // Tomate bravo 🍅
 function drawTom(f){
-  const x = f.x, y = f.y + (f.frozen>0 ? 0 : Math.abs(Math.sin(frame*0.15))*-3);
+  const x = f.x - camX, y = f.y + (f.frozen>0 ? 0 : Math.abs(Math.sin(frame*0.15))*-3);
   rr(x+2, y+6, 24, 16, '#d63031'); rr(x+4, y+4, 20, 4, '#d63031');
   rr(x+4, y+20, 20, 3, '#a52525');
   rr(x+10, y, 8, 5, '#2e7d32');                         // folhinha
@@ -858,7 +856,7 @@ function drawTom(f){
 }
 // Azeitona apressada 🫒
 function drawOli(f){
-  const x = f.x, y = f.y;
+  const x = f.x - camX, y = f.y;
   rr(x+3, y+4, 22, 14, '#6b8e23'); rr(x+5, y+2, 18, 3, '#6b8e23');
   rr(x+5, y+16, 18, 3, '#55701c');
   rr(x+10, y+8, 7, 6, '#c0392b');                       // pimentão
@@ -889,7 +887,7 @@ function groundYBelow(px, py){
 
 // BOSS — Chef Ciúme 👨‍🍳
 function drawBoss(b){
-  const x = b.x, y = b.y;
+  const x = b.x - camX, y = b.y;
   const lean = b.chargeT > 0 ? Math.sin(frame*0.6)*3 : 0;
   ctx.save(); ctx.translate(lean, 0);
   rr(x+14, y, 36, 16, '#fff'); rr(x+10, y+4, 44, 8, '#fff');  // chapéu
